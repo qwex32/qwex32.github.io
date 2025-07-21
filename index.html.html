@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>투두리스트</title>
+  <style>
+    .layout-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+
+    .todo-list, .calendar-section {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      flex: 1;
+    }
+
+    button {
+      background-color: #ffe1de;
+      color: black;
+      border: none;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s ease;
+    }
+
+    .badge {
+      background-color: #ffc13d;
+      color: black;
+      border-radius: 50%;
+      font-size: 12px;
+      padding: 2px 6px;
+      position: absolute;
+      top: 0;
+      right: 0;
+      transform: translate(50%, -50%);
+    }
+
+    body {
+      font-family: sans-serif;
+      margin: 40px;
+      background-color: #eaffdc;
+    }
+
+    li.done {
+      text-decoration: line-through;
+      color: rgb(255, 194, 204);
+    }
+
+    #timetable {
+      width: 100%;
+      text-align: center;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    #timetable td {
+      height: 40px;
+      cursor: pointer;
+    }
+
+    #timetable td:hover {
+      background-color: #ffe1de;
+    }
+
+    table {
+      margin-top: 20px;
+    }
+
+    .date-box {
+      position: relative;
+      padding: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout-container">
+    <div class="todo-list">
+      <h1>📝 투두리스트</h1>
+      <input type="date" id="todoDate" />
+      <input type="text" id="todoInput" placeholder="할 일을 입력하세요" />
+      <input type="date" id="dueDate" />
+      <button onclick="addTodo()">추가</button>
+      <div id="todoListContainer"></div>
+    </div>
+
+    <div class="calendar-section">
+      <h1>📆 달력</h1>
+      <div>
+        <button onclick="prevMonth()">⬅ 이전달</button>
+        <button onclick="nextMonth()">다음달 ➡</button>
+      </div>
+      <div id="currentMonth" style="font-size: 1.5em; margin-bottom: 10px;"></div>
+      <div id="calendar"></div>
+    </div>
+  </div>
+  
+
+  <h1>📚 시간표</h1>
+  <table border="1" id="timetable">
+    <thead>
+      <tr>
+        <th>시간 / 요일</th>
+        <th>월</th>
+        <th>화</th>
+        <th>수</th>
+        <th>목</th>
+        <th>금</th>
+      </tr>
+    </thead>
+    <tbody>
+      <script>
+        for (let i = 1; i <= 7; i++) {
+          document.write('<tr><th>' + i + '교시</th>' +
+            '<td data-day="월" data-period="' + i + '"></td>' +
+            '<td data-day="화" data-period="' + i + '"></td>' +
+            '<td data-day="수" data-period="' + i + '"></td>' +
+            '<td data-day="목" data-period="' + i + '"></td>' +
+            '<td data-day="금" data-period="' + i + '"></td></tr>');
+        }
+      </script>
+    </tbody>
+  </table>
+
+  <script>
+    let todos = JSON.parse(localStorage.getItem("todos") || "{}");
+
+    function saveTodos() {
+      localStorage.setItem("todos", JSON.stringify(todos));
+    }
+
+    function addTodo() {
+      const date = document.getElementById("todoDate").value;
+      const text = document.getElementById("todoInput").value.trim();
+      const due = document.getElementById("dueDate").value;
+
+      if (!date || !text) return;
+
+      if (!todos[date]) todos[date] = [];
+      todos[date].push({ text: text, due: due, done: false });
+
+      saveTodos();
+      renderTodos();
+      createCalendar(currentYear, currentMonth);
+
+      document.getElementById("todoInput").value = "";
+      document.getElementById("dueDate").value = "";
+    }
+
+   function renderTodos() {
+  const container = document.getElementById("todoListContainer");
+  container.innerHTML = "";
+
+  const sortedDates = Object.keys(todos).sort((a, b) => new Date(a) - new Date(b));
+
+  for (const date of sortedDates) {
+    const h3 = document.createElement("h3");
+
+    const today = new Date().toISOString().split("T")[0]; 
+    let dateLabel = `📅 ${date}`;
+
+    if (date === today) {
+      dateLabel += " - 오늘 마감";
+    } else if (new Date(date) < new Date(today)) {
+      h3.style.color = "red";
+    }
+
+    h3.textContent = dateLabel;
+    container.appendChild(h3);
+
+    const ul = document.createElement("ul");
+
+    todos[date].forEach((todo, index) => {
+  const li = document.createElement("li");
+  if (todo.done) li.classList.add("done");
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = todo.done;
+  checkbox.onchange = () => {
+    todo.done = checkbox.checked;
+    saveTodos();
+    renderTodos();
+  };
+
+  const dueText = todo.due
+    ? ` (마감: ${todo.due}${
+        todo.due === today
+          ? ", 오늘 마감"
+          : new Date(todo.due) < new Date(today)
+          ? " - 마감 지남"
+          : ""
+      })`
+    : "";
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.textContent = "삭제";
+  deleteBtn.onclick = () => {
+    todos[date].splice(index, 1);
+    if (todos[date].length === 0) delete todos[date];
+    saveTodos();
+    renderTodos();
+  };
+
+  li.appendChild(checkbox);
+  li.appendChild(document.createTextNode(" " + todo.text + dueText + " "));
+  li.appendChild(deleteBtn);
+  ul.appendChild(li);
+});
+
+
+    container.appendChild(ul);
+  }
+}
+
+
+    const timetableData = JSON.parse(localStorage.getItem("timetable") || "{}");
+
+    function saveTimetable() {
+      localStorage.setItem("timetable", JSON.stringify(timetableData));
+    }
+
+    function renderTimetable() {
+      const cells = document.querySelectorAll("#timetable td");
+      cells.forEach((cell) => {
+        const day = cell.dataset.day;
+        const period = cell.dataset.period;
+        const key = `${day}-${period}`;
+        cell.textContent = timetableData[key] || "";
+
+        cell.onclick = () => {
+          const current = timetableData[key] || "";
+          const input = prompt(`${day}요일 ${period}교시 과목 입력:`, current);
+          if (input === null) return;
+
+          if (input.trim() === "") {
+            delete timetableData[key];
+          } else {
+            timetableData[key] = input.trim();
+          }
+          saveTimetable();
+          renderTimetable();
+        };
+      });
+    }
+
+    let currentYear = new Date().getFullYear();
+    let currentMonth = new Date().getMonth();
+
+    function createCalendar(year, month) {
+      const monthEl = document.getElementById("currentMonth");
+      monthEl.textContent = `${year}년 ${month + 1}월`;
+      const calendarEl = document.getElementById("calendar");
+      calendarEl.innerHTML = "";
+
+      const date = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const firstDayOfWeek = date.getDay();
+
+      let table = "<table border='1'><tr>";
+      const weekDays = ["일", "월", "화", "수", "목", "금", "토"];
+      for (let d of weekDays) {
+        table += `<th>${d}</th>`;
+      }
+      table += "</tr><tr>";
+
+      for (let i = 0; i < firstDayOfWeek; i++) {
+        table += "<td></td>";
+      }
+
+      for (let day = 1; day <= lastDay; day++) {
+        const fullDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const dayTodos = todos[fullDate] || [];
+        const countBadge = dayTodos.length > 0
+          ? `<span class="badge">${dayTodos.length}</span>`
+          : "";
+
+        table += `<td onclick="addTodoForDate('${fullDate}')">
+                    <div class="date-box">${day}${countBadge}</div>
+                  </td>`;
+
+        if ((firstDayOfWeek + day) % 7 === 0) {
+          table += "</tr><tr>";
+        }
+      }
+
+      table += "</tr></table>";
+      calendarEl.innerHTML = table;
+    }
+
+    function addTodoForDate(date) {
+      let message = `📅 ${date}의 할 일 목록:\n`;
+      if (todos[date] && todos[date].length > 0) {
+        todos[date].forEach((todo, idx) => {
+          message += ` ${idx + 1}. ${todo.text} ${todo.done ? "(완료)" : ""}\n`;
+        });
+      } else {
+        message += " (등록된 일 없음)\n";
+      }
+
+      const newTodo = prompt(message + "\n➕ 새 할 일 추가:");
+      if (newTodo && newTodo.trim() !== "") {
+        const due = prompt("📌 마감 날짜를 YYYY-MM-DD 형식으로 입력하세요:", date);
+        if (!todos[date]) todos[date] = [];
+        todos[date].push({ text: newTodo.trim(), due: due.trim(), done: false });
+        saveTodos();
+        renderTodos();
+        createCalendar(currentYear, currentMonth);
+      }
+    }
+
+    function prevMonth() {
+      currentMonth--;
+      if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+      }
+      createCalendar(currentYear, currentMonth);
+    }
+
+    function nextMonth() {
+      currentMonth++;
+      if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
+      }
+      createCalendar(currentYear, currentMonth);
+    }
+
+    window.onload = () => {
+      renderTodos();
+      renderTimetable();
+      createCalendar(currentYear, currentMonth);
+    };
+  </script>
+</body>
+<a href="https://school.cbe.go.kr/juseong-h/M01/" target="_blank">
+  주성고 홈페이지
+</a>
+
+</html>
